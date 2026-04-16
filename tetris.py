@@ -4,11 +4,13 @@ from enum import Enum
 from collections import deque
 
 class BlockColor(Enum):
-    WHITE = 0
-    BLACK = 1
-    BLUE = 2
-    PINK = 3
-    YELLOW = 4
+    BLUE = 1
+    PINK = 2
+    YELLOW = 3
+    RED = 4
+    GREEN = 5
+    CYAN = 6
+    ORANGE = 7
 
 class Action(Enum):
     LEFT = 0
@@ -44,7 +46,7 @@ class Obstacle:
 
 class LineObstacle(Obstacle):
     def __init__(self, id: int, x: int, y: int):
-        super().__init__(id, x, y, BlockColor.BLUE)
+        super().__init__(id, x, y, BlockColor.CYAN)
         self.blocks.append(Block(-1, 0))
         self.blocks.append(Block(0, 0))
         self.blocks.append(Block(1, 0))
@@ -66,12 +68,29 @@ class BoxObstacle(Obstacle):
         self.blocks.append(Block(1, 0))
         self.blocks.append(Block(1, -1))
 
+class LObstacle(Obstacle):
+    def __init__(self, id: int, x: int, y: int):
+        super().__init__(id, x, y, BlockColor.BLUE)
+        self.blocks.append(Block(0, 0))
+        self.blocks.append(Block(0, -1))
+        self.blocks.append(Block(0, -2))
+        self.blocks.append(Block(1, 0))
+
+class JObstacle(Obstacle):
+    def __init__(self, id: int, x: int, y: int):
+        super().__init__(id, x, y, BlockColor.RED)
+        self.blocks.append(Block(0, 0))
+        self.blocks.append(Block(0, -1))
+        self.blocks.append(Block(0, -2))
+        self.blocks.append(Block(-1, 0))
 
 class Tetris:
-    def __init__(self, width: int, height: int):
+    def __init__(self, width: int = 10, height: int = 20):
         self.width = width
         self.height = height
         self.board = np.zeros((height, width))
+        self.done = False
+        self.step = 0
 
         self.current_obstacle: Obstacle | None = None
         self.obstacle_queue = deque()
@@ -80,17 +99,28 @@ class Tetris:
 
     def next_obstacle(self, peice_id: int = None):
         if peice_id is not None or len(self.obstacle_queue) == 0:
-            random_obstacle = peice_id if peice_id is not None else random.choice(range(2))
-            match random_obstacle:
-                case 0:
-                    self.current_obstacle = TObstacle(random_obstacle, self.width // 2 - 1, 2)
-                case 1:
-                    self.current_obstacle = LineObstacle(random_obstacle, self.width // 2 - 1, 2)
-                case 2:
-                    self.current_obstacle = BoxObstacle(random_obstacle, self.width // 2 - 1, 2)
-
+            random_obstacle = peice_id if peice_id is not None else random.choice(range(5))
+            self.current_obstacle = self.new_obstacle(random_obstacle)
         else:
             self.current_obstacle = self.obstacle_queue.popleft()
+    
+    def new_obstacle(self, id: int) -> Obstacle:
+        x, y = self.width // 2 - 1, 2
+        obs = None
+
+        match id:
+            case 0:
+                obs = TObstacle(id, x, y)
+            case 1:
+                obs = LineObstacle(id, x, y)
+            case 2:
+                obs = BoxObstacle(id, x, y)
+            case 3:
+                obs = LObstacle(id, x, y)
+            case 4:
+                obs = JObstacle(id, x, y)
+        
+        return obs
 
     def get_board_block_value(self, x: int, y: int) -> int:
         return int(self.board[y, x])
@@ -136,8 +166,21 @@ class Tetris:
             case Action.ROTATE:
                 self.move_obstacle(rotation=90)
     
+    def apply_state(self, state: tuple[int, int]) -> bool:
+        x, rotation = state
+        applied = self.move_obstacle(direction=(x, 0), rotation=rotation)
+
+        if applied:
+            self.drop_obstacle()
+            self.settle_obstacle()
+
+        return applied
+    
     def get_next_states(self) -> dict:
         states = {}
+
+        if self.current_obstacle is None:
+            return {}
 
         peice_name = self.current_obstacle.name
         rotations = (0, 90, 180, 270)
@@ -166,20 +209,71 @@ class Tetris:
     def drop_obstacle(self):
         while self.move_obstacle(direction=(0, 1)):
             continue
+    
+    def settle_obstacle(self):
+        self.board = self.get_current_board()
+        self.next_obstacle()
 
-    def play(self, action: Action):
-        self.apply_action(action)
+    def play(self, next_state: tuple[int, int]):
+        reward = 0
+        next_states = {}
+
+        if not self.done:
+            applied = self.apply_state(next_state)
+            if applied:
+                cleared = self.clear_rows()
+                reward = 2 ** cleared
+                self.done = self.is_game_over()
+            else:
+                reward = -1
+            
+            self.step += 1
+            next_states = self.get_next_states()
+
+        return self.get_current_board(), next_states, reward, self.done
+
+    # Test function
+    def fill_row(self, row):
+        self.board[row, :] = 1
+    
+    def clear_rows(self) -> int:
+        cleared = 0
+        for row in range(3, self.height):
+            is_row_clear = all([col > 0 for col in self.board[row]])
+            if is_row_clear:
+                for above in range(row, 0, -1):
+                    self.board[above, :] = self.board[above - 1, :]
+                    self.board[above - 1, :] = 0
+                cleared += 1
+        
+        return cleared
+    
+    def is_game_over(self) -> bool:
+        for row in range(0, 3):
+            if any([col > 0 for col in self.board[row]]):
+                self.current_obstacle = None
+                return True
+        
+        return False
 
     def print_board(self):
         print(self)
 
     def get_current_board(self):
+        if self.current_obstacle is None:
+            return self.board
+        
         current_obstacle_position = self.current_obstacle.block_positions()
         copy_board = self.board.copy()
         for (x, y) in current_obstacle_position:
             copy_board[y, x] = self.current_obstacle.color_value.value
         
         return copy_board
+    
+    def get_raw_flat_board(self):
+        board = self.get_current_board()
+        board = board.flatten()
+        return np.array([1 if e > 0 else 0 for e in board])
 
     def __str__(self):
         return str(self.get_current_board())

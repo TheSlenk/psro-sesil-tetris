@@ -45,12 +45,11 @@ from open_spiel.python.algorithms.psro_v2 import rl_oracle
 from open_spiel.python.algorithms.psro_v2 import rl_policy
 from open_spiel.python.algorithms.psro_v2 import strategy_selectors
 
-import tetris_open_game
 
 FLAGS = flags.FLAGS
 
 # Game-related
-flags.DEFINE_string("game_name", "tetris_game", "Game name.")
+flags.DEFINE_string("game_name", "kuhn_poker", "Game name.")
 flags.DEFINE_integer("n_players", 2, "The number of players.")
 
 # PSRO related
@@ -164,7 +163,6 @@ def init_br_responder(env):
 
 def init_dqn_responder(env):
   """Initializes the Policy Gradient-based responder and agents."""
-  print(env.observation_spec())
   state_representation_size = env.observation_spec()["info_state"][0]
   num_actions = env.action_spec()["num_actions"]
 
@@ -293,17 +291,17 @@ def main(argv):
 
   np.random.seed(FLAGS.seed)
 
-  game = pyspiel.load_game_as_turn_based(FLAGS.game_name)
+  game = pyspiel.load_game_as_turn_based(FLAGS.game_name,
+                                         {"players": FLAGS.n_players})
   env = rl_environment.Environment(game)
 
   # Initialize oracle and agents
-  # if FLAGS.oracle_type == "DQN":
-  # elif FLAGS.oracle_type == "PG":
-  #   oracle, agents = init_pg_responder(env)
-  # elif FLAGS.oracle_type == "BR":
-  #   oracle, agents = init_br_responder(env)
-
-  oracle, agents = init_dqn_responder(env)
+  if FLAGS.oracle_type == "DQN":
+    oracle, agents = init_dqn_responder(env)
+  elif FLAGS.oracle_type == "PG":
+    oracle, agents = init_pg_responder(env)
+  elif FLAGS.oracle_type == "BR":
+    oracle, agents = init_br_responder(env)
   gpsro_looper(env, oracle, agents)
 
 
