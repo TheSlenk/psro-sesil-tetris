@@ -58,11 +58,11 @@ flags.DEFINE_string("meta_strategy_method", "alpharank",
                     "Name of meta strategy computation method.")
 flags.DEFINE_integer("number_policies_selected", 1,
                      "Number of new strategies trained at each PSRO iteration.")
-flags.DEFINE_integer("sims_per_entry", 1000,
+flags.DEFINE_integer("sims_per_entry", 100,
                      ("Number of simulations to run to estimate each element"
                       "of the game outcome matrix."))
 
-flags.DEFINE_integer("gpsro_iterations", 100,
+flags.DEFINE_integer("gpsro_iterations", 10,
                      "Number of training steps for GPSRO.")
 flags.DEFINE_bool("symmetric_game", False, "Whether to consider the current "
                   "game as a symmetric game.")
@@ -86,7 +86,7 @@ flags.DEFINE_string("training_strategy_selector", "probabilistic",
 # General (RL) agent parameters
 flags.DEFINE_string("oracle_type", "BR", "Choices are DQN, PG (Policy "
                     "Gradient) or BR (exact Best Response)")
-flags.DEFINE_integer("number_training_episodes", int(1e4), "Number training "
+flags.DEFINE_integer("number_training_episodes", int(500), "Number training "
                      "episodes per RL policy. Used for PG and DQN")
 flags.DEFINE_float("self_play_proportion", 0.0, "Self play proportion")
 flags.DEFINE_integer("hidden_layer_size", 256, "Hidden layer size")
@@ -104,7 +104,7 @@ flags.DEFINE_float("pi_learning_rate", 1e-3, "Policy learning rate.")
 
 # DQN
 flags.DEFINE_float("dqn_learning_rate", 1e-2, "DQN learning rate.")
-flags.DEFINE_integer("update_target_network_every", 1000, "Update target "
+flags.DEFINE_integer("update_target_network_every", 100, "Update target "
                      "network every [X] steps")
 flags.DEFINE_integer("learn_every", 10, "Learn every [X] steps.")
 
@@ -253,7 +253,7 @@ def gpsro_looper(env, oracle, agents):
       sims_per_entry=FLAGS.sims_per_entry,
       number_policies_selected=FLAGS.number_policies_selected,
       meta_strategy_method=FLAGS.meta_strategy_method,
-      prd_iterations=50000,
+      prd_iterations=100,
       prd_gamma=1e-10,
       sample_from_marginals=sample_from_marginals,
       symmetric_game=FLAGS.symmetric_game)

@@ -95,6 +95,8 @@ class Tetris:
         self.current_obstacle: Obstacle | None = None
         self.obstacle_queue = deque()
 
+        self.next_states: dict = None
+
         self.next_obstacle()
 
     def next_obstacle(self, peice_id: int = None):
@@ -128,19 +130,21 @@ class Tetris:
     def set_board_block_value(self, x: int, y: int, value):
         self.board[y, x] = value
 
-    def move_obstacle(self, direction: tuple[int, int] = (0, 0), rotation: int = 0) -> bool:
+    def move_obstacle(self, direction: tuple[int, int] = (0, 0), rotation: int = 0, validate: bool = True) -> bool:
         new_x, new_y = self.current_obstacle.x + direction[0], self.current_obstacle.y + direction[1]
         old_x, old_y = self.current_obstacle.x, self.current_obstacle.y
         rotation_to_old_rotation = 360 - (rotation % 360)
         self.current_obstacle.x, self.current_obstacle.y = new_x, new_y
         self.current_obstacle.rotate(rotation)
 
-        valid = self.validate_obstacle()
-        if not valid:
-            self.current_obstacle.x, self.current_obstacle.y = old_x, old_y
-            self.current_obstacle.rotate(rotation_to_old_rotation)
+        if validate:
+            valid = self.validate_obstacle()
+            if not valid:
+                self.current_obstacle.x, self.current_obstacle.y = old_x, old_y
+                self.current_obstacle.rotate(rotation_to_old_rotation)
 
-        return valid
+            return valid
+        return True
 
     def validate_obstacle(self) -> bool:
         blocks = self.current_obstacle.block_positions()
@@ -177,27 +181,38 @@ class Tetris:
         return applied
     
     def get_next_states(self) -> dict:
-        states = {}
 
+        if self.next_states is not None:
+            return self.next_states
+        
+        return self._gen_next_states()
+
+    def _gen_next_states(self) -> dict:
+        
         if self.current_obstacle is None:
             return {}
+        
+        states = {}
 
         peice_name = self.current_obstacle.name
         rotations = (0, 90, 180, 270)
-        if peice_name == "LineObstacle" or peice_name == "BoxObstacle":
+        if peice_name == "BoxObstacle":
+            rotations = (0,)
+        elif peice_name == "LineObstacle":
             rotations = (0, 90)
         
         for rotation in rotations:
-            self.move_obstacle(rotation=rotation)
+            self.move_obstacle(rotation=rotation, validate=False)
             block_x_pos = [block[0] for block in self.current_obstacle.block_positions()]
             min_x = min(block_x_pos)
             max_x = max(block_x_pos)
             self.reset_obstacle()
 
             for x in range(-min_x, self.width - max_x):
-                self.move_obstacle(direction=(x, 0), rotation=rotation)
-                self.drop_obstacle()
-                states[(x, rotation)] = self.get_current_board()
+                valid = self.move_obstacle(direction=(x, 0), rotation=rotation, validate=True)
+                if valid:
+                    self.drop_obstacle()
+                    states[(x, rotation)] = self.get_current_board()
                 self.reset_obstacle()
         
         return states
@@ -216,7 +231,6 @@ class Tetris:
 
     def play(self, next_state: tuple[int, int]):
         reward = 0
-        next_states = {}
 
         if not self.done:
             applied = self.apply_state(next_state)
@@ -226,11 +240,12 @@ class Tetris:
                 self.done = self.is_game_over()
             else:
                 reward = -1
+                raise Exception(f'ERR: Invalid action: {next_state}, valid action set: {self.get_next_states().keys()}')
             
             self.step += 1
-            next_states = self.get_next_states()
+            self.next_states = self._gen_next_states()
 
-        return self.get_current_board(), next_states, reward, self.done
+        return self.get_current_board(), self.get_next_states(), reward, self.done
 
     # Test function
     def fill_row(self, row):

@@ -1,7 +1,6 @@
 import pyspiel
 from tetris import Tetris
 import itertools
-# from display import Display
 import numpy as np
 
 class MyCustomGameGame(pyspiel.Game):
@@ -11,10 +10,10 @@ class MyCustomGameGame(pyspiel.Game):
             short_name="tetris_game",
             long_name="My Tetris Game",
             dynamics=pyspiel.GameType.Dynamics.SEQUENTIAL,
-            chance_mode=pyspiel.GameType.ChanceMode.DETERMINISTIC,
+            chance_mode=pyspiel.GameType.ChanceMode.EXPLICIT_STOCHASTIC,
             information=pyspiel.GameType.Information.PERFECT_INFORMATION,
             utility=pyspiel.GameType.Utility.GENERAL_SUM,
-            reward_model=pyspiel.GameType.RewardModel.TERMINAL,
+            reward_model=pyspiel.GameType.RewardModel.REWARDS,
             max_num_players=2,
             min_num_players=2,
             provides_information_state_string=False,
@@ -24,12 +23,12 @@ class MyCustomGameGame(pyspiel.Game):
         )
         game_info = pyspiel.GameInfo(
             num_distinct_actions=76,
-            max_chance_outcomes=0,
+            max_chance_outcomes=7,
             num_players=2,
-            min_utility=0.0,
+            min_utility=-1000,
             max_utility=1000.0,
             utility_sum=None,
-            max_game_length=10000
+            max_game_length=50_000
         )
         super().__init__(game_type, game_info, params or {})
 
@@ -43,13 +42,13 @@ class MyCustomGameGame(pyspiel.Game):
     def information_state_tensor_size(self):
         return 200
 
-    def new_initial_state(self) -> pyspiel.State:
-        return MyCustomGameState(self)
+    def new_initial_state(self, show: bool = False) -> pyspiel.State:
+        return MyCustomGameState(self, show)
 
     # Override other methods as needed
 
 class MyCustomGameState(pyspiel.State):
-    def __init__(self, game):
+    def __init__(self, game, show: bool = False):
         super().__init__(game)
         # Initialize state (e.g., board, current player)
         self.height, self.width = 20, 10
@@ -59,8 +58,11 @@ class MyCustomGameState(pyspiel.State):
         self.current_player_idx = 0
 
         self.action_mapping = list(itertools.product(range(-self.width + 1, self.width), (0, 90, 180, 270)))
-        # self.display = Display(num_players=num_players)
-        # self.display.start()
+        self.display = None
+        if show:
+            from display import Display
+            self.display = Display(num_players=num_players)
+            self.display.start()
 
     def current_player(self):
         # Return current player index
@@ -77,14 +79,14 @@ class MyCustomGameState(pyspiel.State):
         action = self.action_mapping[action_idx]
 
         _, _, reward, _ = self.envs[self.current_player_idx].play(action)
-        # self.update_display()
+        self.update_display()
         self.total_rewards[self.current_player_idx] += reward
 
         self.pass_turn()
 
     def is_terminal(self):
         total_steps = sum([env.step for env in self.envs])
-        return any([env.done for env in self.envs]) or total_steps > 50
+        return any([env.done for env in self.envs])
 
     def returns(self):
         # Return payoffs for all players
@@ -117,7 +119,8 @@ class MyCustomGameState(pyspiel.State):
         return state_str
     
     def update_display(self):
-        self.display.update([(env.get_current_board(), env.done) for env in self.envs])
+        if self.display is not None:
+            self.display.update([(env.get_current_board(), env.done) for env in self.envs])
     # Override other methods as needed
 
 # Register the game
