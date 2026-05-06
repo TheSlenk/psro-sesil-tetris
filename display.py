@@ -2,6 +2,7 @@ import pygame
 import threading
 from enum import Enum
 from tetris import BlockColor
+from tetris_game import TetrisGame
 
 class Color(Enum):
     WHITE = (255, 255, 255)
@@ -26,13 +27,13 @@ tetris_colors = {
 }
 
 class Display:
-    def __init__(self, num_players: int = 2, height: int = 800, width: int = 800):
+    def __init__(self, env: TetrisGame, height: int = 800, width: int = 800):
         pygame.init()
-
+        
+        self.env = env
         self.screen = pygame.display.set_mode((width, height))
-        self.player_width = width // num_players
+        self.player_width = width // env.num_players
         self.player_height = height
-        self.boards: list[tuple] = []
         self.margin_x = (self.player_width * 0.1) // 2
         self.margin_y = (self.player_height * 0.1) // 2
         self.cell_size_x = (self.player_width * 0.9) // 10
@@ -58,9 +59,11 @@ class Display:
 
             while self.running:
                 self.screen.fill(Color.WHITE.value)
-                if len(self.boards) > 0:
-                    for index, (board, done) in enumerate(self.boards):
+                if self.env:
+                    boards = self.env.full_game_display()
+                    for index, (board, done) in enumerate(boards):
                         draw_board(index, board, done)
+                
                 pygame.display.update()
 
                 for event in pygame.event.get():
@@ -74,8 +77,8 @@ class Display:
     def change_caption(self, message: str):
         pygame.display.set_caption(message)
     
-    def stop(self):
+    def close(self):
         self.running = False
     
-    def update(self, boards: list[tuple]):
-        self.boards = boards
+    def update(self, new_env: TetrisGame):
+        self.env = new_env

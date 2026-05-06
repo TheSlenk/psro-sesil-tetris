@@ -234,18 +234,31 @@ class Tetris:
 
         if not self.done:
             applied = self.apply_state(next_state)
-            if applied:
-                cleared = self.clear_rows()
-                reward = 2 ** cleared
-                self.done = self.is_game_over()
-            else:
-                reward = -1
-                raise Exception(f'ERR: Invalid action: {next_state}, valid action set: {self.get_next_states().keys()}')
-            
+            if not applied:
+                valid_next_states = list(self.get_next_states().keys())
+                if len(valid_next_states) <= 0:
+                    raise Exception(f'ERR: Invalid action: {next_state}, valid action set: {valid_next_states}')
+                valid_next_state = self._find_closest_state(next_state, valid_next_states)
+                applied = self.apply_state(valid_next_state)
+                if not applied:
+                    raise Exception(f'ERR: bad impementation within _find_closest_state()')
+                
+            cleared = self.clear_rows()
+            reward = 2 ** cleared
+            self.done = self.is_game_over()
             self.step += 1
             self.next_states = self._gen_next_states()
 
         return self.get_current_board(), self.get_next_states(), reward, self.done
+
+    def _find_closest_state(self, state: tuple, state_list: list[tuple]) -> tuple:
+        same_rot = [s for s in state_list if s[1] == state[1]]
+        if len(same_rot) > 0:
+            closest = np.argmin(np.array([np.abs(state[0] - s[0]) for s in same_rot]))
+            return same_rot[closest]
+        
+        closest = np.argmin(np.array([np.abs(state[0] - s[0]) for s in state_list]))
+        return state_list[closest]
 
     # Test function
     def fill_row(self, row):
