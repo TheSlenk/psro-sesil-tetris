@@ -84,6 +84,22 @@ class JObstacle(Obstacle):
         self.blocks.append(Block(0, -2))
         self.blocks.append(Block(-1, 0))
 
+class ZObstacle(Obstacle):
+    def __init__(self, id: int, x: int, y: int):
+        super().__init__(id, x, y, BlockColor.GREEN)
+        self.blocks.append(Block(0, 0))
+        self.blocks.append(Block(0, -1))
+        self.blocks.append(Block(-1, -1))
+        self.blocks.append(Block(1, 0))
+
+class SObstacle(Obstacle):
+    def __init__(self, id: int, x: int, y: int):
+        super().__init__(id, x, y, BlockColor.ORANGE)
+        self.blocks.append(Block(0, 0))
+        self.blocks.append(Block(-1, 0))
+        self.blocks.append(Block(0, -1))
+        self.blocks.append(Block(1, -1))
+
 class Tetris:
     def __init__(self, width: int = 10, height: int = 20):
         self.width = width
@@ -101,7 +117,7 @@ class Tetris:
 
     def next_obstacle(self, peice_id: int = None):
         if peice_id is not None or len(self.obstacle_queue) == 0:
-            random_obstacle = peice_id if peice_id is not None else random.choice(range(5))
+            random_obstacle = peice_id if peice_id is not None else random.choice(range(7))
             self.current_obstacle = self.new_obstacle(random_obstacle)
         else:
             self.current_obstacle = self.obstacle_queue.popleft()
@@ -121,6 +137,10 @@ class Tetris:
                 obs = LObstacle(id, x, y)
             case 4:
                 obs = JObstacle(id, x, y)
+            case 5:
+                obs = ZObstacle(id, x, y)
+            case 6:
+                obs = SObstacle(id, x, y)
         
         return obs
 
