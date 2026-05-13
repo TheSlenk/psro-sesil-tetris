@@ -1,8 +1,10 @@
-import pygame
 import threading
 from enum import Enum
 from tetris import BlockColor
 from tetris_game import TetrisGame
+
+import pygame
+pygame.init()
 
 class Color(Enum):
     WHITE = (255, 255, 255)
@@ -26,18 +28,12 @@ tetris_colors = {
     BlockColor.RED.value: Color.RED.value
 }
 
+# Create 
 class Display:
     def __init__(self, env: TetrisGame, height: int = 800, width: int = 800):
-        pygame.init()
-        
         self.env = env
+        self.width, self.height = width, height
         self.screen = pygame.display.set_mode((width, height))
-        self.player_width = width // env.num_players
-        self.player_height = height
-        self.margin_x = (self.player_width * 0.1) // 2
-        self.margin_y = (self.player_height * 0.1) // 2
-        self.cell_size_x = (self.player_width * 0.9) // 10
-        self.cell_size_y = (self.player_height * 0.9) // 20
         self.running = False
     
     def start(self):
@@ -59,7 +55,13 @@ class Display:
 
             while self.running:
                 self.screen.fill(Color.WHITE.value)
-                if self.env:
+                if self.env is not None:
+                    self.player_width = self.width // self.env.num_players
+                    self.player_height = self.height
+                    self.margin_x = (self.player_width * 0.1) // 2
+                    self.margin_y = (self.player_height * 0.1) // 2
+                    self.cell_size_x = (self.player_width * 0.9) // 10
+                    self.cell_size_y = (self.player_height * 0.9) // 20
                     boards = self.env.full_game_display()
                     for index, (board, done) in enumerate(boards):
                         draw_board(index, board, done)

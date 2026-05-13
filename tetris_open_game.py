@@ -1,6 +1,7 @@
 import pyspiel
 from tetris_game import TetrisGame, OBS_SHAPE, NUM_DISTINCT_ACTIONS, MAX_GAME_LEN
 import numpy as np
+from display import Display
 
 NUM_PLAYERS = 2
 game_type = pyspiel.GameType(
@@ -43,22 +44,19 @@ class MyCustomGameGame(pyspiel.Game):
     def information_state_tensor_size(self):
         return OBS_SHAPE
 
-    def new_initial_state(self, show: bool = False) -> pyspiel.State:
+    def new_initial_state(self, show: Display = None) -> pyspiel.State:
         return MyCustomGameState(self, show)
 
     # Override other methods as needed
 
 class MyCustomGameState(pyspiel.State):
-    def __init__(self, game: MyCustomGameGame, show: bool = False):
+    def __init__(self, game: MyCustomGameGame, show: Display = False):
         super().__init__(game)
         # Initialize state (e.g., board, current player)
         self.env = TetrisGame(num_players=game.num_players())
-        self.display = None
-
-        if show:
-            from display import Display
-            self.display = Display(env=self.env)
-            self.display.start()
+        
+        if show is not None:
+            show.update(self.env)
 
     def current_player(self):
         # Return current player index
@@ -67,11 +65,11 @@ class MyCustomGameState(pyspiel.State):
     def legal_actions(self, player_id: int = None):
         return self.env.legal_actions(player_id)
 
-    def _apply_action(self, action_idx):
+    def apply_action(self, action_idx):
         self.env.apply_action(action_idx)
     
     def is_terminal(self):
-        return self.env.is_terminated
+        return self.env.is_terminated()
 
     def returns(self):
         return self.env.rewards()
